@@ -64,5 +64,33 @@ def baby_names(datapath: str=None, destination: str=None):
     print('Wrote csv to {}'.format(destination))
 
 
+@cli.command()
+@click.argument('male_datafile', type=click.File('r'))
+@click.argument('female_datafile', type=click.File('r'))
+@click.argument('destination')
+def lifetables(male_datafile: str=None,
+               female_datafile: str=None,
+               destination: str=None):
+    def read_transform(f, sex):
+        df = pd.read_csv(
+            f,
+            index_col=False,
+            header=5,
+            names=[
+                'year', 'age', 'lx', 'dx', 'Lx', 'Tx', 'ex', 'Dx', 'Mx', 'Ax',
+                'Nx', 'ax', '12ax'
+            ])
+        df['sex'] = sex
+        return df[['year', 'age', 'lx', 'dx', 'Lx', 'Tx', 'ex', 'sex']]
+
+    dfs = [
+        read_transform(male_datafile, 'M'), read_transform(female_datafile,
+                                                           'F')
+    ]
+    df = pd.concat(dfs)
+    df.to_csv(destination, index=False)
+    print('Wrote csv to {}'.format(destination))
+
+
 if __name__ == '__main__':
     cli()

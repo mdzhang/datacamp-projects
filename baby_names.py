@@ -110,7 +110,7 @@ def get_trendy_names(df, n=10):
 top10_trendy_names = get_trendy_names(bnames)
 
 #######################################################################
-# What percentage of people born in Year X are still alive in 2016?
+# How many people born in Year X are still alive in 2016?
 #######################################################################
 
 lifetables = pd.read_csv('datasets/lifetables.csv')
@@ -120,6 +120,7 @@ df1 = lt[lt['year'] + lt['age'] == 2016]
 
 lifetables_2016 = df1
 
+# lx = # people born in a year who live upto a given age
 plt.plot(df1['year'], df1['lx'])
 plt.xlabel('Year')
 plt.ylabel('Life expectancy')
@@ -129,14 +130,14 @@ plt.show()
 #######################################################################
 # Same as above, but smoothen curve by using linear inteperpolation
 # to fill in missing years
-# Limit to 1900-2010
+# Limit to 1900-2015
 #######################################################################
 
 df1 = lt[(lt['year'] + lt['age'] == 2016) & (lt['year'].isin(
-    range(1900, 2011)))]
+    range(1900, 2016)))]
 df2 = df1[['sex', 'year', 'lx']]
 
-years = [y for y in range(1900, 2011) if y % 10 != 0]
+years = [y for y in range(1900, 2016) if y % 10 != 0]
 missing = list(
     chain(zip(years, 'M' * len(years)), zip(years, 'F' * len(years))))
 
@@ -145,5 +146,39 @@ df3['lx'] = np.nan
 
 df4 = pd.concat([df2, df3]).reset_index(drop=True).sort_values('year')
 df4['lx'] = df4['lx'].interpolate()
+df4 = df4.sort_values(['sex', 'year'])
 
-lifetable_2016_s = df1
+lifetable_2016_s = df4
+
+#######################################################################
+# Plot year (x-axis) against # births (y-axis) for
+# boys named Joseph, girls named Brittany
+# plot total # births as a line
+# fill # people still alive under that line, in a different color
+#######################################################################
+
+
+def get_data(name, sex):
+    df0 = bnames[(bnames['name'] == name) & (bnames['sex'] == sex)]
+    df1 = lifetable_2016_s[lifetable_2016_s['sex'] == sex]
+    df2 = pd.merge(df0, df1, on=['sex', 'year'])
+    df2['n_alive'] = (df2['lx'] * df2['births']) / 100000
+    return df2[['name', 'sex', 'births', 'lx', 'n_alive', 'year']]
+
+
+def plot_data(name, sex):
+    df = get_data(name, sex)
+    df2 = df[['year', 'births', 'n_alive']]
+    gender = {'F': 'females', 'M': 'males'}[sex]
+
+    ax = df2.plot.line(x='year', y='births')
+    df2.plot(kind='area', x='year', y='n_alive', ax=ax)
+    plt.xlabel('Year')
+    plt.ylabel('Number of births')
+    plt.title('Births and No births still alive by year for {} named {}'
+              .format(gender, name))
+    plt.show()
+
+
+plot_data('Joseph', 'M')
+plot_data('Brittany', 'F')

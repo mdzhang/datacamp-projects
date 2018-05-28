@@ -1,3 +1,4 @@
+import datetime
 from itertools import chain
 
 import matplotlib.pyplot as plt
@@ -5,6 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from IPython.core.debugger import Pdb
+from wquantiles import quantile
 
 sns.set()
 
@@ -182,3 +184,58 @@ def plot_data(name, sex):
 
 plot_data('Joseph', 'M')
 plot_data('Brittany', 'F')
+
+#######################################################################
+# For a given name, find the probability a person with that name
+# is still alive, and the quantiles for how old they probably are
+#######################################################################
+
+
+def estimate_age(name, sex):
+    # probability of being alive is sum(n_alive) / sum(births)
+    df = get_data(name, sex)
+    p_alive = df['n_alive'].sum() / df['births'].sum()
+    year = datetime.datetime.now().year
+    df['age'] = year - df['year']
+    df['weights'] = df['n_alive'] / df['n_alive'].sum()
+    get_quantile = lambda q: quantile(df['age'], df['weights'], q)
+
+    q25 = get_quantile(0.25)
+    q50 = get_quantile(0.5)
+    q75 = get_quantile(0.75)
+
+    data = {
+        'p_alive': p_alive,
+        'q25': q25,
+        'q50': q50,
+        'q75': q75,
+        'name': name,
+        'sex': sex
+    }
+    s = pd.Series(data=data)
+    return s
+
+
+gertrude = estimate_age('Gertrude', 'F')
+
+#######################################################################
+# Same as above, but for top 10 female names
+#######################################################################
+
+
+def get_top(sex='F', n=10):
+    df0 = bnames[bnames['sex'] == sex]
+    df1 = df0.groupby(['name'])['births'].agg({'total': np.sum, })
+    df2 = df1.sort_values('total', ascending=False).head(n)
+    return df2.index.values
+
+
+dfs = []
+
+for name in get_top(sex='F', n=10):
+    s = estimate_age(name, 'F')
+    d = s.to_frame().transpose()
+    dfs.append(d)
+
+df1 = pd.concat(dfs).sort_values('q50')
+median_ages = df1

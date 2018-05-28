@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from IPython.core.debugger import Pdb
@@ -90,45 +91,18 @@ num_peaks_deneen = 1
 
 
 def get_trendy_names(df, n=10):
-    def build_result_df(grp, total_births, max_births, trendiness):
-        name = grp['name'].reset_index(drop=True)[0]
-        sex = grp['sex'].reset_index(drop=True)[0]
+    df2 = df
 
-        result = pd.DataFrame(
-            {
-                'name': name,
-                'sex': sex,
-                'total': total_births,
-                'max': max_births,
-                'trendiness': trendiness,
-            },
-            index=[[name], [sex]])
-        result.index.set_names(['name', 'sex'], inplace=True)
+    df3 = df2.groupby(['sex', 'name'])['births'].agg({
+        'max': np.max,
+        'total': np.sum,
+    })
+    df3['trendiness'] = df3['max'] / df3['total']
+    df4 = df3.reset_index(drop=False)
+    df5 = df4[df4['total'] > 1000]
 
-        return result
-
-    def birth_metrics(grp):
-        total_births = grp['births'].sum()
-        prop_births = grp['births'] / total_births
-
-        mpb = prop_births.max()
-        spb = prop_births.sum()
-
-        trendiness = mpb / spb
-
-        mb = grp['births'].max()
-
-        return build_result_df(grp, total_births, mb, trendiness)
-
-    df1 = df.set_index(['name', 'sex'])
-    too_few = df1[df1['births'] <= 1000]
-    df2 = df1[~df1.index.isin(too_few.index)]
-
-    df3 = df2.reset_index().groupby(['sex', 'name']).apply(birth_metrics)
-    df4 = df3.reset_index(drop=True)
-
-    df5 = df4.sort_values(['trendiness'], ascending=False)
-    return df5.head(n).reset_index()
+    df6 = df5.sort_values(['trendiness'], ascending=False)
+    return df6.head(n).reset_index(drop=True)
 
 
 top10_trendy_names = get_trendy_names(bnames)

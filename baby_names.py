@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from IPython.core.debugger import Pdb
 
 sns.set()
 
@@ -89,31 +90,45 @@ num_peaks_deneen = 1
 
 
 def get_trendy_names(df, n=10):
-    df1 = add_prop_births(bnames)
+    def build_result_df(grp, total_births, max_births, trendiness):
+        name = grp['name'].reset_index(drop=True)[0]
+        sex = grp['sex'].reset_index(drop=True)[0]
 
-    mpb = df1.groupby(['sex', 'name'])['prop_births'].max()
-    spb = df1.groupby(['sex', 'name'])['prop_births'].sum()
+        result = pd.DataFrame(
+            {
+                'name': name,
+                'sex': sex,
+                'total': total_births,
+                'max': max_births,
+                'trendiness': trendiness,
+            },
+            index=[[name], [sex]])
+        result.index.set_names(['name', 'sex'], inplace=True)
 
-    # convert to dataframe and rename column
-    df2 = mpb.to_frame().reset_index()
-    df2 = df2.rename(columns={'prop_births': 'max'})
+        return result
 
-    df3 = spb.to_frame().reset_index()
-    df3 = df3.rename(columns={'prop_births': 'total'})
+    def birth_metrics(grp):
+        total_births = grp['births'].sum()
+        prop_births = grp['births'] / total_births
 
-    # create a new dataframe with name/sex/year/births/total_births cols
-    df4 = pd.merge(df2, df3, on=['sex', 'name'])
+        mpb = prop_births.max()
+        spb = prop_births.sum()
 
-    df4['trendiness'] = df4['max'] / df4['total']
+        trendiness = mpb / spb
 
-    df4 = pd.merge(df4, df1, on=['sex', 'name'])
+        mb = grp['births'].max()
 
-    df5 = df4.loc[df4['births'] >= 1000]
+        return build_result_df(grp, total_births, mb, trendiness)
 
-    cols = ['sex', 'name', 'max', 'total', 'trendiness']
-    df6 = df5.sort_values(['trendiness'], ascending=False)
-    df6 = df6.drop_duplicates(subset=['name', 'sex'])
-    return df6.reset_index().iloc[0:n][cols]
+    df1 = df.set_index(['name', 'sex'])
+    too_few = df1[df1['births'] <= 1000]
+    df2 = df1[~df1.index.isin(too_few.index)]
+
+    df3 = df2.reset_index().groupby(['sex', 'name']).apply(birth_metrics)
+    df4 = df3.reset_index(drop=True)
+
+    df5 = df4.sort_values(['trendiness'], ascending=False)
+    return df5.head(n).reset_index()
 
 
 top10_trendy_names = get_trendy_names(bnames)

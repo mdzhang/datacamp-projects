@@ -1,12 +1,8 @@
 import datetime
-from itertools import chain
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
-from IPython.core.debugger import Pdb
-from wquantiles import quantile
 
 sns.set()
 
@@ -76,5 +72,38 @@ last_commit_timestamp = pd.to_datetime(datetime.datetime.now())
 
 df3 = df2[str(first_commit_timestamp):str(last_commit_timestamp)]
 
-corrected_log = df3
+corrected_log = df3.reset_index()
 corrected_log['timestamp'].describe()
+
+#######################################################################
+# get commits by year
+#######################################################################
+
+df1 = corrected_log
+
+df2 = df1.groupby(pd.Grouper(key='timestamp', freq='AS')).count()
+
+commits_per_year = df2
+commits_per_year.describe()
+
+#######################################################################
+# plot commits by year
+#######################################################################
+
+df1 = commits_per_year
+df1.plot(legend=False)
+plt.xlabel('Year')
+plt.ylabel('Number of commits')
+
+plt.title('Number of linux git commits by year')
+plt.show()
+
+#######################################################################
+# find year w/ greatest # commits
+#######################################################################
+
+df1 = commits_per_year
+df1.columns = ['commits']
+df2 = df1.sort_values('commits', ascending=False).take([0])
+year = pd.to_datetime(df2.index.values[0]).year
+year_with_most_commits = year
